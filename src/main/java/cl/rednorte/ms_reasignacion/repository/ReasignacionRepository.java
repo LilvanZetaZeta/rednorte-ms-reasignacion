@@ -1,5 +1,6 @@
 package cl.rednorte.ms_reasignacion.repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -17,4 +18,7 @@ public interface ReasignacionRepository extends JpaRepository<Reasignacion, UUID
     
     // Para verificar si un cupo ya tiene una reasignación en curso
     boolean existsByCupoIdAndEstado(UUID cupoId, ReasignacionEstado estado);
+
+    // Para buscar todas las reasignaciones pendientes cuya fecha de expiración ya pasó
+    List<Reasignacion> findByEstadoAndFechaExpiracionBefore(ReasignacionEstado estado, LocalDateTime fechaActual);
 }

@@ -1,6 +1,7 @@
 package cl.rednorte.ms_reasignacion.service;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
@@ -102,5 +103,22 @@ public class ReasignacionService {
 
         Reasignacion guardada = reasignacionRepository.save(reasignacion);
         return mapearAResponse(guardada);
+    }
+
+    // --- 4. LIMPIADOR AUTOMÁTICO (CRON) ---
+    @Transactional
+    public void expirarReasignacionesVencidas() {
+        List<Reasignacion> vencidas = reasignacionRepository.findByEstadoAndFechaExpiracionBefore(
+                ReasignacionEstado.PENDIENTE, LocalDateTime.now()
+        );
+
+        if (vencidas.isEmpty()) {
+            return;
+        }
+
+        vencidas.forEach(r -> r.setEstado(ReasignacionEstado.EXPIRADA));
+        reasignacionRepository.saveAll(vencidas);
+
+        System.out.println("[CRON JOB] Limpieza ejecutada: " + vencidas.size() + " reasignaciones marcadas como EXPIRADAS automáticamente.");
     }
 }
