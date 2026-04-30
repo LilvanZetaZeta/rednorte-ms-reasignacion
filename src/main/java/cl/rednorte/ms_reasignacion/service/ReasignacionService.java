@@ -1,6 +1,7 @@
 package cl.rednorte.ms_reasignacion.service;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -8,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import cl.rednorte.ms_reasignacion.dto.CupoLiberadoRequestDTO;
 import cl.rednorte.ms_reasignacion.dto.ReasignacionRequestDTO;
 import cl.rednorte.ms_reasignacion.dto.ReasignacionResponseDTO;
+import cl.rednorte.ms_reasignacion.dto.RespuestaPacienteDTO;
 import cl.rednorte.ms_reasignacion.entity.CupoLiberado;
 import cl.rednorte.ms_reasignacion.entity.Reasignacion;
 import cl.rednorte.ms_reasignacion.enums.ReasignacionEstado;
@@ -72,5 +74,33 @@ public class ReasignacionService {
         dto.setFechaExpiracion(entidad.getFechaExpiracion());
         dto.setEstado(entidad.getEstado());
         return dto;
+    }
+    
+    // --- 3. RESPUESTA DEL PACIENTE (Aceptar/Rechazar) ---
+    @Transactional(noRollbackFor = IllegalStateException.class)
+    public ReasignacionResponseDTO responderReasignacion(UUID id, RespuestaPacienteDTO dto) {
+        // 1. Verificar que la reasignación exista
+        Reasignacion reasignacion = reasignacionRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("La reasignación no existe."));
+
+        // 2. Verificar que no haya sido respondida antes
+        if (reasignacion.getEstado() != ReasignacionEstado.PENDIENTE) {
+            throw new IllegalStateException("Esta reasignación ya no es válida. Estado actual: " + reasignacion.getEstado());
+        }
+
+        // 3. Verificar que no esté vencida matemáticamente
+        if (LocalDateTime.now().isAfter(reasignacion.getFechaExpiracion())) {
+            // Si expiró, le cambiamos el estado silenciosamente en BD para que no quede "colgada"
+            reasignacion.setEstado(ReasignacionEstado.EXPIRADA);
+            reasignacionRepository.save(reasignacion);
+            throw new IllegalStateException("El tiempo para aceptar este cupo ha expirado.");
+        }
+
+        // 4. Si pasó todos los filtros de seguridad, aplicamos la decisión del paciente
+        ReasignacionEstado nuevoEstado = dto.getAceptada() ? ReasignacionEstado.ACEPTADA : ReasignacionEstado.RECHAZADA;
+        reasignacion.setEstado(nuevoEstado);
+
+        Reasignacion guardada = reasignacionRepository.save(reasignacion);
+        return mapearAResponse(guardada);
     }
 }

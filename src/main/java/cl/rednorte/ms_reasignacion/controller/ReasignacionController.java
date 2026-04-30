@@ -1,7 +1,11 @@
 package cl.rednorte.ms_reasignacion.controller;
 
+import java.util.UUID;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -10,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 import cl.rednorte.ms_reasignacion.dto.CupoLiberadoRequestDTO;
 import cl.rednorte.ms_reasignacion.dto.ReasignacionRequestDTO;
 import cl.rednorte.ms_reasignacion.dto.ReasignacionResponseDTO;
+import cl.rednorte.ms_reasignacion.dto.RespuestaPacienteDTO;
 import cl.rednorte.ms_reasignacion.entity.CupoLiberado;
 import cl.rednorte.ms_reasignacion.service.ReasignacionService;
 import jakarta.validation.Valid;
@@ -34,5 +39,13 @@ public class ReasignacionController {
     @PostMapping
     public ResponseEntity<ReasignacionResponseDTO> crearReasignacion(@Valid @RequestBody ReasignacionRequestDTO dto) {
         return new ResponseEntity<>(reasignacionService.crearReasignacion(dto), HttpStatus.CREATED);
+    }
+
+    // --- 3. RESPUESTA DEL PACIENTE ---
+    @PatchMapping("/{id}/respuesta")
+    public ResponseEntity<ReasignacionResponseDTO> responderReasignacion(
+            @PathVariable UUID id,
+            @Valid @RequestBody RespuestaPacienteDTO dto) {
+        return ResponseEntity.ok(reasignacionService.responderReasignacion(id, dto));
     }
 }
