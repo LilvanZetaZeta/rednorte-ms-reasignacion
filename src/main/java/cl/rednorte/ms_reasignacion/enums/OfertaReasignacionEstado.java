@@ -1,6 +1,6 @@
 package cl.rednorte.ms_reasignacion.enums;
 
-public enum ReasignacionEstado {
+public enum OfertaReasignacionEstado {
     PENDIENTE,
     ACEPTADA,
     RECHAZADA,
