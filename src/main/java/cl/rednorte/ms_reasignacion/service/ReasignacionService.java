@@ -2,123 +2,100 @@ package cl.rednorte.ms_reasignacion.service;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.UUID;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import cl.rednorte.ms_reasignacion.dto.CupoLiberadoRequestDTO;
-import cl.rednorte.ms_reasignacion.dto.ReasignacionRequestDTO;
-import cl.rednorte.ms_reasignacion.dto.ReasignacionResponseDTO;
+import cl.rednorte.ms_reasignacion.dto.OfertaRequest;
+import cl.rednorte.ms_reasignacion.dto.OfertaResponse;
 import cl.rednorte.ms_reasignacion.dto.RespuestaPacienteDTO;
 import cl.rednorte.ms_reasignacion.entity.CupoLiberado;
-import cl.rednorte.ms_reasignacion.entity.Reasignacion;
-import cl.rednorte.ms_reasignacion.enums.ReasignacionEstado;
+import cl.rednorte.ms_reasignacion.entity.OfertaReasignacion;
+import cl.rednorte.ms_reasignacion.enums.OfertaReasignacionEstado;
 import cl.rednorte.ms_reasignacion.repository.CupoLiberadoRepository;
-import cl.rednorte.ms_reasignacion.repository.ReasignacionRepository;
-import lombok.RequiredArgsConstructor;
+import cl.rednorte.ms_reasignacion.repository.OfertaReasignacionRepository;
 
 @Service
-@RequiredArgsConstructor
 public class ReasignacionService {
 
-    private final CupoLiberadoRepository cupoLiberadoRepository;
-    private final ReasignacionRepository reasignacionRepository;
+    @Autowired private CupoLiberadoRepository cupoLiberadoRepository;
+    @Autowired private OfertaReasignacionRepository ofertaRepository;
 
-    // --- 1. REGISTRAR CUPO LIBERADO ---
+    // 1. Registrar cupo liberado
     @Transactional
     public CupoLiberado registrarCupo(CupoLiberadoRequestDTO dto) {
         CupoLiberado cupo = new CupoLiberado();
         cupo.setReservaOriginalId(dto.getReservaOriginalId());
-        cupo.setFechaLiberacion(LocalDateTime.now());
-        cupo.setMotivoCancelacion(dto.getMotivoCancelacion());
-        
+        cupo.setFechaHoraCupo(LocalDateTime.now());
         return cupoLiberadoRepository.save(cupo);
     }
 
-    // --- 2. CREAR REASIGNACIÓN (Ofrecer el cupo) ---
+    // 2. Crear oferta de reasignación
     @Transactional
-    public ReasignacionResponseDTO crearReasignacion(ReasignacionRequestDTO dto) {
-        // Regla 1: El cupo debe existir
+    public OfertaResponse crearOferta(OfertaRequest dto) {
         CupoLiberado cupo = cupoLiberadoRepository.findById(dto.getCupoId())
-                .orElseThrow(() -> new IllegalArgumentException("El cupo liberado no existe."));
+                .orElseThrow(() -> new RuntimeException("El cupo liberado no existe."));
 
-        // Regla 2: No ofrecer el mismo cupo si ya hay una reasignación PENDIENTE
-        if (reasignacionRepository.existsByCupoIdAndEstado(cupo.getId(), ReasignacionEstado.PENDIENTE)) {
-            throw new IllegalStateException("Este cupo ya está siendo ofrecido a otro paciente y sigue pendiente.");
+        if (ofertaRepository.existsByCupoIdAndEstado(cupo.getId(), OfertaReasignacionEstado.PENDIENTE)) {
+            throw new RuntimeException("Este cupo ya está siendo ofrecido a otro paciente.");
         }
 
-        Reasignacion reasignacion = new Reasignacion();
-        reasignacion.setCupo(cupo);
-        reasignacion.setPacienteCandidatoId(dto.getPacienteCandidatoId());
-        
-        // El servidor controla el tiempo absoluto
-        LocalDateTime ahora = LocalDateTime.now();
-        reasignacion.setFechaReasignacion(ahora);
-        
-        // Cálculo de expiración
-        reasignacion.setFechaExpiracion(ahora.plusMinutes(dto.getMinutosVigencia()));
-        reasignacion.setEstado(ReasignacionEstado.PENDIENTE);
+        OfertaReasignacion oferta = new OfertaReasignacion();
+        oferta.setCupo(cupo);
+        oferta.setPacienteCandidatoId(dto.getPacienteCandidatoId());
+        oferta.setTiempoLimite(LocalDateTime.now().plusMinutes(dto.getMinutosVigencia()));
+        oferta.setEstado(OfertaReasignacionEstado.PENDIENTE);
 
-        Reasignacion guardada = reasignacionRepository.save(reasignacion);
-        return mapearAResponse(guardada);
+        return mapearAResponse(ofertaRepository.save(oferta));
     }
 
-    // --- TRADUCTOR A DTO ---
-    private ReasignacionResponseDTO mapearAResponse(Reasignacion entidad) {
-        ReasignacionResponseDTO dto = new ReasignacionResponseDTO();
-        dto.setId(entidad.getId());
-        dto.setCupoId(entidad.getCupo().getId());
-        dto.setReservaOriginalId(entidad.getCupo().getReservaOriginalId());
-        dto.setPacienteCandidatoId(entidad.getPacienteCandidatoId());
-        dto.setFechaReasignacion(entidad.getFechaReasignacion());
-        dto.setFechaExpiracion(entidad.getFechaExpiracion());
-        dto.setEstado(entidad.getEstado());
-        return dto;
-    }
-    
-    // --- 3. RESPUESTA DEL PACIENTE (Aceptar/Rechazar) ---
-    @Transactional(noRollbackFor = IllegalStateException.class)
-    public ReasignacionResponseDTO responderReasignacion(UUID id, RespuestaPacienteDTO dto) {
-        // 1. Verificar que la reasignación exista
-        Reasignacion reasignacion = reasignacionRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("La reasignación no existe."));
-
-        // 2. Verificar que no haya sido respondida antes
-        if (reasignacion.getEstado() != ReasignacionEstado.PENDIENTE) {
-            throw new IllegalStateException("Esta reasignación ya no es válida. Estado actual: " + reasignacion.getEstado());
-        }
-
-        // 3. Verificar que no esté vencida matemáticamente
-        if (LocalDateTime.now().isAfter(reasignacion.getFechaExpiracion())) {
-            // Si expiró, le cambiamos el estado silenciosamente en BD para que no quede "colgada"
-            reasignacion.setEstado(ReasignacionEstado.EXPIRADA);
-            reasignacionRepository.save(reasignacion);
-            throw new IllegalStateException("El tiempo para aceptar este cupo ha expirado.");
-        }
-
-        // 4. Si pasó todos los filtros de seguridad, aplicamos la decisión del paciente
-        ReasignacionEstado nuevoEstado = dto.getAceptada() ? ReasignacionEstado.ACEPTADA : ReasignacionEstado.RECHAZADA;
-        reasignacion.setEstado(nuevoEstado);
-
-        Reasignacion guardada = reasignacionRepository.save(reasignacion);
-        return mapearAResponse(guardada);
-    }
-
-    // --- 4. LIMPIADOR AUTOMÁTICO (CRON) ---
+    // 3. Respuesta del paciente
     @Transactional
-    public void expirarReasignacionesVencidas() {
-        List<Reasignacion> vencidas = reasignacionRepository.findByEstadoAndFechaExpiracionBefore(
-                ReasignacionEstado.PENDIENTE, LocalDateTime.now()
-        );
+    public OfertaResponse responderOferta(Long id, RespuestaPacienteDTO dto) {
+        OfertaReasignacion oferta = ofertaRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("La oferta no existe."));
 
-        if (vencidas.isEmpty()) {
-            return;
+        if (oferta.getEstado() != OfertaReasignacionEstado.PENDIENTE) {
+            throw new RuntimeException("Esta oferta ya no es válida. Estado actual: " + oferta.getEstado());
         }
 
-        vencidas.forEach(r -> r.setEstado(ReasignacionEstado.EXPIRADA));
-        reasignacionRepository.saveAll(vencidas);
+        if (LocalDateTime.now().isAfter(oferta.getTiempoLimite())) {
+            oferta.setEstado(OfertaReasignacionEstado.EXPIRADA);
+            ofertaRepository.save(oferta);
+            throw new RuntimeException("El tiempo para aceptar este cupo ha expirado.");
+        }
 
-        System.out.println("[CRON JOB] Limpieza ejecutada: " + vencidas.size() + " reasignaciones marcadas como EXPIRADAS automáticamente.");
+        oferta.setEstado(dto.getAceptada()
+                ? OfertaReasignacionEstado.ACEPTADA
+                : OfertaReasignacionEstado.RECHAZADA);
+
+        return mapearAResponse(ofertaRepository.save(oferta));
+    }
+
+    // 4. Limpieza automática (CRON)
+    @Transactional
+    public void expirarOfertasVencidas() {
+        List<OfertaReasignacion> vencidas = ofertaRepository.findByEstadoAndTiempoLimiteBefore(
+                OfertaReasignacionEstado.PENDIENTE, LocalDateTime.now());
+
+        if (vencidas.isEmpty()) return;
+
+        vencidas.forEach(o -> o.setEstado(OfertaReasignacionEstado.EXPIRADA));
+        ofertaRepository.saveAll(vencidas);
+
+        System.out.println("[CRON] " + vencidas.size() + " ofertas marcadas como EXPIRADAS.");
+    }
+
+    private OfertaResponse mapearAResponse(OfertaReasignacion o) {
+        OfertaResponse r = new OfertaResponse();
+        r.setId(o.getId());
+        r.setCupoId(o.getCupo().getId());
+        r.setReservaOriginalId(o.getCupo().getReservaOriginalId());
+        r.setPacienteCandidatoId(o.getPacienteCandidatoId());
+        r.setTiempoLimite(o.getTiempoLimite());
+        r.setEstado(o.getEstado());
+        return r;
     }
 }
