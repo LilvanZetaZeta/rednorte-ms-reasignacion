@@ -25,7 +25,7 @@ public class ReasignacionController {
 
     @Autowired private ReasignacionService reasignacionService;
 
-    // 1. Registrar cupo liberado
+    // Registrar cupo liberado
     @PostMapping("/cupos")
     public ResponseEntity<?> registrarCupo(@RequestBody CupoLiberadoRequestDTO dto) {
         try {
@@ -36,7 +36,7 @@ public class ReasignacionController {
         }
     }
 
-    // 2. Crear oferta de reasignación
+    // Crear oferta de reasignación
     @PostMapping
     public ResponseEntity<?> crearOferta(@RequestBody OfertaRequest dto) {
         try {
@@ -47,7 +47,7 @@ public class ReasignacionController {
         }
     }
 
-    // 3. Respuesta del paciente
+    // Respuesta del paciente
     @PatchMapping("/{id}/respuesta")
     public ResponseEntity<?> responder(@PathVariable Long id, @RequestBody RespuestaPacienteDTO dto) {
         try {
