@@ -23,7 +23,7 @@ public class ReasignacionService {
     @Autowired private CupoLiberadoRepository cupoLiberadoRepository;
     @Autowired private OfertaReasignacionRepository ofertaRepository;
 
-    // 1. Registrar cupo liberado
+    // Registrar cupo liberado
     @Transactional
     public CupoLiberado registrarCupo(CupoLiberadoRequestDTO dto) {
         CupoLiberado cupo = new CupoLiberado();
@@ -32,7 +32,7 @@ public class ReasignacionService {
         return cupoLiberadoRepository.save(cupo);
     }
 
-    // 2. Crear oferta de reasignación
+    // Crear oferta de reasignación
     @Transactional
     public OfertaResponse crearOferta(OfertaRequest dto) {
         CupoLiberado cupo = cupoLiberadoRepository.findById(dto.getCupoId())
@@ -74,7 +74,7 @@ public class ReasignacionService {
         return mapearAResponse(ofertaRepository.save(oferta));
     }
 
-    // 4. Limpieza automática (CRON)
+    // Limpieza automática (CRON)
     @Transactional
     public void expirarOfertasVencidas() {
         List<OfertaReasignacion> vencidas = ofertaRepository.findByEstadoAndTiempoLimiteBefore(
