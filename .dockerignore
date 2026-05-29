@@ -8,6 +8,7 @@ mvnw.cmd
 .env.properties
 .vscode/
 .idea/
+node_modules/
 *.iml
 Dockerfile
 docker-compose.yml
