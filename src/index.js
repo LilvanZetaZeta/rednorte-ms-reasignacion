@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import reasignacionRoutes from './routes/reasignacion.routes.js';
+import listaEsperaRoutes from './routes/listaEspera.routes.js';
 
 import { iniciarCronJobs } from './scheduler/cron.js'; 
 
@@ -15,6 +16,7 @@ app.use(express.json());
 
 // Ruta en plural para coincidir con tu API Gateway
 app.use('/api/reasignaciones', reasignacionRoutes);
+app.use('/api/reasignaciones', listaEsperaRoutes);
 
 app.use((req, res) => {
     res.status(404).json({ error: 'Ruta no encontrada en MS Reasignacion' });
