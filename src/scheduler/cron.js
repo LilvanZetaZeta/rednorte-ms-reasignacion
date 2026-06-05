@@ -1,8 +1,7 @@
-import cron from 'node-cron';
 import { supabase } from '../config/supabase.js';
 
 export const iniciarCronJobs = () => {
-    cron.schedule('* * * * *', async () => {
+    const ejecutarLimpieza = async () => {
         try {
             const ahora = new Date().toISOString();
 
@@ -21,7 +20,13 @@ export const iniciarCronJobs = () => {
         } catch (err) {
             console.error("[CRON JOB] Error al expirar reasignaciones:", err.message);
         }
-    });
+    };
+
+    // Ejecutar limpieza inmediatamente al iniciar el servicio
+    ejecutarLimpieza();
+
+    // Programar para ejecutarse cada 1 minuto (60000 ms)
+    setInterval(ejecutarLimpieza, 60000);
     
-    console.log("Cron Job de limpieza de reasignaciones inicializado.");
+    console.log("Cron Job de limpieza de reasignaciones inicializado (setInterval).");
 };
