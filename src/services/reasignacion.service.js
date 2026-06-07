@@ -50,7 +50,11 @@ export const reasignacionService = {
     },
 
     cambiarEstado: async (id, estado) => {
-        // 1. Actualización local en Supabase
+        const estadosValidos = ['PENDIENTE', 'ACEPTADA', 'RECHAZADA', 'EXPIRADA'];
+        if (!estadosValidos.includes(estado)) {
+            throw new Error(`Estado inválido: ${estado}. Los estados válidos son: ${estadosValidos.join(', ')}`);
+        }
+
         const { data, error } = await supabase
             .from('oferta_reasignacion')
             .update({ estado })
@@ -59,6 +63,7 @@ export const reasignacionService = {
             .single();
 
         if (error) throw new Error(error.message);
+        return data;
 
         // 2. Orquestación de eventos inter-microservicios
         if (estado === 'ACEPTADA') {
