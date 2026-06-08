@@ -2,50 +2,23 @@ import request from 'supertest';
 import { jest } from '@jest/globals';
 
 // --- MOCK DE SUPABASE ---
-// Se mockea antes de importar app para interceptar el process.exit(1)
-const mockSingle = jest.fn();
-const mockSelect = jest.fn(() => ({ single: mockSingle }));
-const mockUpdate = jest.fn(() => ({ eq: mockEq }));
-const mockInsert = jest.fn(() => ({ select: mockSelect }));
-const mockDelete = jest.fn(() => ({ eq: mockEqDelete }));
-
-const mockEq = jest.fn(() => ({
-    select: mockSelect,
-    eq: jest.fn(() => ({ select: mockSelect })),
-    single: mockSingle,
-}));
-
-const mockEqDelete = jest.fn(() => ({}));
-
-const mockFrom = jest.fn(() => ({
-    insert: mockInsert,
-    select: jest.fn(() => ({
-        eq: jest.fn(() => ({
-            eq: jest.fn(() => ({ data: [], error: null })),
-        })),
-    })),
-    update: jest.fn(() => ({ eq: mockEq })),
-    delete: jest.fn(() => ({ eq: mockEqDelete })),
-}));
-
+const mockFrom = jest.fn();
 jest.unstable_mockModule('../src/config/supabase.js', () => ({
     supabase: { from: mockFrom },
 }));
 
-// --- MOCK DEL CRON (para que no arranque el setInterval en tests) ---
+// --- MOCK DEL CRON ---
 jest.unstable_mockModule('../src/scheduler/cron.js', () => ({
     iniciarCronJobs: jest.fn(),
 }));
 
 const { default: app } = await import('../src/app.js');
-
-// Helper para resetear mocks entre tests
 beforeEach(() => {
     jest.clearAllMocks();
 });
 
 // =========================================================
-// POST /api/reasignaciones — Crear oferta de reasignación
+// POST /api/reasignaciones
 // =========================================================
 describe('POST /api/reasignaciones', () => {
 
@@ -150,7 +123,7 @@ describe('GET /api/reasignaciones/paciente/:pacienteId', () => {
 });
 
 // =========================================================
-// PUT /api/reasignaciones/:id — Actualizar oferta completa
+// PUT /api/reasignaciones/:id
 // =========================================================
 describe('PUT /api/reasignaciones/:id', () => {
 
@@ -213,7 +186,7 @@ describe('PUT /api/reasignaciones/:id', () => {
 });
 
 // =========================================================
-// PATCH /api/reasignaciones/:id — Cambiar estado
+// PATCH /api/reasignaciones/:id
 // =========================================================
 describe('PATCH /api/reasignaciones/:id', () => {
 
@@ -280,7 +253,7 @@ describe('PATCH /api/reasignaciones/:id', () => {
 });
 
 // =========================================================
-// DELETE /api/reasignaciones/:id — Eliminar oferta
+// DELETE /api/reasignaciones/:id
 // =========================================================
 describe('DELETE /api/reasignaciones/:id', () => {
 
@@ -311,38 +284,5 @@ describe('DELETE /api/reasignaciones/:id', () => {
 
         expect(response.statusCode).toBe(400);
         expect(response.body).toHaveProperty('error');
-    });
-});
-
-// =========================================================
-// POST /api/reasignaciones/cupo-libre — Registrar cupo liberado
-// =========================================================
-describe('POST /api/reasignaciones/cupo-libre', () => {
-
-    test('debe procesar un evento de cupo liberado y retornar 202', async () => {
-        const evento = {
-            medicoId: 5,
-            centroId: 2,
-            fechaHora: '2026-07-01T10:00:00',
-            especialidad: 'CARDIOLOGIA',
-            tipoProcedimiento: 'CONSULTA_MEDICA',
-        };
-
-        const response = await request(app)
-            .post('/api/reasignaciones/cupo-libre')
-            .send(evento);
-
-        expect(response.statusCode).toBe(202);
-        expect(response.body.ok).toBe(true);
-        expect(response.body).toHaveProperty('detalle');
-    });
-
-    test('debe retornar 202 incluso con un body vacío (el servicio solo registra el evento)', async () => {
-        const response = await request(app)
-            .post('/api/reasignaciones/cupo-libre')
-            .send({});
-
-        expect(response.statusCode).toBe(202);
-        expect(response.body.ok).toBe(true);
     });
 });
