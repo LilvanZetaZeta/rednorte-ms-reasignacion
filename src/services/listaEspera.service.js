@@ -18,7 +18,7 @@ export const listaEsperaService = {
 
         if (errorCupo) throw new Error(`Error al registrar cupo liberado: ${errorCupo.message}`);
 
-        // 2. Buscar candidato por centro + especialidad (prioridad más alta primero)
+        // 2. Buscar candidato por centro + especialidad y prioridad
         let candidato = null;
 
         const { data: candidatosPorEspecialidad, error: errorEsp } = await supabase
