@@ -1,0 +1,14 @@
+services:
+  app:
+    build: .
+    container_name: ms-reasignacion-app
+    ports:
+      - "8083:8083"
+    env_file:
+      - .env
+    networks:
+      - network-RedNorte
+
+networks:
+  network-RedNorte:
+    external: true
