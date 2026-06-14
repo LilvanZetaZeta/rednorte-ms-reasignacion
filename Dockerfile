@@ -1,17 +1,21 @@
-FROM maven:3.9.9-eclipse-temurin-21 AS build
+FROM node:22-alpine
+
 WORKDIR /app
 
-COPY pom.xml .
-RUN mvn dependency:go-offline
+# Instalamos pnpm globalmente usando npm. Es mucho más estable en Alpine.
+RUN npm install -g pnpm
 
-COPY src ./src
-RUN mvn clean package -DskipTests
+# Copiamos los manifiestos primero
+COPY package.json ./
+# El asterisco evita que falle si no tienes el archivo lock
+COPY pnpm-lock.yaml* ./
 
-FROM eclipse-temurin:21-jre-alpine
-WORKDIR /app
+# Instalamos dependencias
+RUN pnpm install --ignore-scripts
 
-COPY --from=build /app/target/ms-reasignacion-0.0.1-SNAPSHOT.jar app.jar
+# Copiamos todo el código fuente
+COPY . .
 
 EXPOSE 8083
 
-ENTRYPOINT ["java", "-jar", "app.jar"]
+CMD ["pnpm", "start"]
