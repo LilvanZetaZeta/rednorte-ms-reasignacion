@@ -63,7 +63,6 @@ export const reasignacionService = {
             .single();
 
         if (error) throw new Error(error.message);
-        return data;
 
         // 2. Orquestación de eventos inter-microservicios
         if (estado === 'ACEPTADA') {
