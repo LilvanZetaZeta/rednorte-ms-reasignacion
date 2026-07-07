@@ -214,6 +214,14 @@ describe('PATCH /api/reasignaciones/:id', () => {
             })),
         });
 
+        mockFrom.mockReturnValueOnce({
+            select: jest.fn(() => ({
+                eq: jest.fn(() => ({
+                    single: jest.fn().mockResolvedValueOnce({ data: { reserva_original_id: 55 }, error: null }),
+                })),
+            })),
+        });
+
         const response = await request(app)
             .patch('/api/reasignaciones/1')
             .send({ estado: 'ACEPTADA' });
@@ -227,7 +235,7 @@ describe('PATCH /api/reasignaciones/:id', () => {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    cupoId: 10,
+                    reservaOriginalId: 55,
                     nuevoPacienteId: 'uuid-paciente-123'
                 })
             })
