@@ -12,9 +12,15 @@ jest.unstable_mockModule('../src/scheduler/cron.js', () => ({
     iniciarCronJobs: jest.fn(),
 }));
 
+// --- MOCK DE FETCH ---
+const mockFetch = jest.fn().mockResolvedValue({ ok: true });
+global.fetch = mockFetch;
+
 const { default: app } = await import('../src/app.js');
 beforeEach(() => {
     jest.clearAllMocks();
+    mockFetch.mockClear();
+    mockFetch.mockResolvedValue({ ok: true });
 });
 
 // =========================================================
@@ -208,12 +214,32 @@ describe('PATCH /api/reasignaciones/:id', () => {
             })),
         });
 
+        mockFrom.mockReturnValueOnce({
+            select: jest.fn(() => ({
+                eq: jest.fn(() => ({
+                    single: jest.fn().mockResolvedValueOnce({ data: { reserva_original_id: 55 }, error: null }),
+                })),
+            })),
+        });
+
         const response = await request(app)
             .patch('/api/reasignaciones/1')
             .send({ estado: 'ACEPTADA' });
 
         expect(response.statusCode).toBe(200);
         expect(response.body.estado).toBe('ACEPTADA');
+        expect(mockFetch).toHaveBeenCalledTimes(1);
+        expect(mockFetch).toHaveBeenCalledWith(
+            'http://ms-gestion-app:8081/api/gestion/reservas/transferir',
+            expect.objectContaining({
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    reservaOriginalId: 55,
+                    nuevoPacienteId: 'uuid-paciente-123'
+                })
+            })
+        );
     });
 
     test('debe cambiar el estado a RECHAZADA correctamente', async () => {
