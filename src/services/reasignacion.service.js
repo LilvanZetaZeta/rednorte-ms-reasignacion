@@ -63,17 +63,24 @@ export const reasignacionService = {
             .single();
 
         if (error) throw new Error(error.message);
-        return data;
 
         // 2. Orquestación de eventos inter-microservicios
         if (estado === 'ACEPTADA') {
+            const { data: cupo, error: errorCupo } = await supabase
+                .from('cupo_liberado')
+                .select('reserva_original_id')
+                .eq('id', data.cupo_id)
+                .single();
+
+            if (errorCupo) throw new Error(`Error al obtener el cupo liberado: ${errorCupo.message}`);
+
             const msGestionUrl = process.env.MS_GESTION_URL || 'http://ms-gestion-app:8081';
-            
+
             const respuestaGestion = await fetch(`${msGestionUrl}/api/gestion/reservas/transferir`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    cupoId: data.cupo_id,
+                    reservaOriginalId: cupo.reserva_original_id,
                     nuevoPacienteId: data.paciente_candidato_id
                 })
             });
